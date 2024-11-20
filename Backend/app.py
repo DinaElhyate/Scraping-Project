@@ -1,69 +1,106 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+from datetime import datetime
+import csv
+import os
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.firefox.options import Options
+from webdriver_manager.firefox import GeckoDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import time
-import csv
-from datetime import datetime
-import os
+from sklearn.linear_model import LogisticRegression
+
 url = "https://fr.investing.com/commodities/crude-oil-commentary"
-csv_filename = 'data.csv'
-# Vérifier si le fichier existe déjà pour ne pas réécrire l'en-tête
-file_exists = os.path.exists(csv_filename)
-# Configurer le navigateur Chrome
+csv_filename = 'dataVersion2.csv'
+
 options = Options()
-options.binary_location = "/usr/bin/google-chrome"  # chemin typique sur Ubuntu
-# options.add_argument('--headless')  # Décommenter si vous voulez exécuter en mode sans tête
+options.binary_location = "/usr/bin/firefox"  # chemin typique sur Ubuntu pour Firefox
+options.add_argument('--disable-extensions')
+options.add_argument('--disable-dev-shm-usage')
+options.add_argument('--no-sandbox')
+
+driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
+
+model = LogisticRegression()
+
+previous_prices = []
+data_batch = []
+
+def write_csv_header():
+    if os.stat(csv_filename).st_size == 0:
+        with open(csv_filename, mode='a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["Timestamp", "Prix actuel", "Changement", "Changement (%)", "Heure de mise à jour", "Prédiction du cumul des prix"])
+
+write_csv_header()
+
+plt.ion()  # Mode interactif pour mise à jour en temps réel
+
 try:
-    print("Initialisation du pilote...")
-    # Initialiser le driver
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    # Boucle infinie pour récupérer les données
+    print("Chargement de la page...")
+    driver.get(url)
+
     while True:
-        print("Chargement de la page...")
-        # Charger la page
-        driver.get(url)
-        # Attendre que les éléments soient visibles
         try:
-            print("Attente des éléments...")
-            WebDriverWait(driver, 20).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, '[data-test="instrument-price-last"]'))
-            )
-            # Trouver les éléments désirés dans la structure HTML
-            price = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-last"]').text.strip()  # Prix actuel
-            change = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-change"]').text.strip()  # Changement
-            change_percent = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-change-percent"]').text.strip()  # Changement en pourcentage
-            time_label = driver.find_element(By.CSS_SELECTOR, '[data-test="trading-time-label"]').text.strip()  # Heure de mise à jour
-            
-            # Récupérer l'heure actuelle pour l'horodatage
+            WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, '[data-test="instrument-price-last"]'))
+        )
+
+            price = float(driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-last"]').text.strip().replace(',', ''))
+            change = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-change"]').text.strip()
+            change_percent = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-change-percent"]').text.strip()
+            time_label = driver.find_element(By.CSS_SELECTOR, '[data-test="trading-time-label"]').text.strip()
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Ouvrir le fichier en mode ajout pour écrire les résultats
-            with open(csv_filename, mode='a', newline='') as file:
-                writer = csv.writer(file)
-                # Écrire l'en-tête dans le fichier CSV uniquement si le fichier est nouveau
-                if not file_exists:
-                    writer.writerow(["Timestamp", "Prix actuel", "Changement", "Changement (%)", "Heure de mise à jour"])
-                    file_exists = True  # Mettre à jour le statut pour éviter de réécrire l'en-tête à l'avenir
-                # Écrire les résultats dans le fichier CSV
-                writer.writerow([timestamp, price, change, change_percent, time_label])
-            # Afficher les résultats
-            print(f"Timestamp: {timestamp}")
-            print(f"Prix actuel Pétrole brut : {price}")
-            print(f"Changement : {change}")
-            print(f"Changement en pourcentage : {change_percent}")
-            print(f"Heure  : {time_label}")
-            print("-" * 40)  # Ligne de séparation pour la lisibilité
+
+            previous_prices.append(price)
+            if len(previous_prices) > 10:  # Conserver les 10 dernières valeurs
+                previous_prices.pop(0)
+
+            if len(previous_prices) == 10:
+                X = np.array(previous_prices[:-1]).reshape(-1, 1)
+                y = np.array(previous_prices[1:])
+                model.fit(X, y)
+                predicted_price = model.predict(np.array([[price]]))[0]
+            else:
+                predicted_price = price  # Pas assez de données pour une prédiction
+
+            data_batch.append([timestamp, price, change, change_percent, time_label, predicted_price])
             
+            if len(data_batch) >= 5:
+                with open(csv_filename, mode='a', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(data_batch)
+                data_batch.clear()  # Vider le lot après écriture
+
+            print(f"Timestamp: {timestamp}, Prix actuel: {price}, Changement: {change}, Pourcentage: {change_percent}, Heure: {time_label}, Prédiction: {predicted_price}")
+
+            if len(previous_prices) >= 10:
+                sma = np.mean(previous_prices[-10:])  # Calcul de la moyenne mobile
+                print(f"Moyenne mobile des 10 derniers prix: {sma}")
+
+                plt.clf()  # Effacer le graphique précédent
+                plt.plot(previous_prices, label='Prix actuel du pétrole', color='blue')
+                plt.axhline(y=sma, color='red', linestyle='-', label='Moyenne mobile (SMA)')
+                plt.title(f"Prix du pétrole et Moyenne mobile - {timestamp}")
+                plt.xlabel('Temps')
+                plt.ylabel('Prix')
+                plt.legend()
+
+                # Mettre à jour le graphique
+                plt.pause(1)  # Attendre 1 seconde pour la mise à jour du graphique
+
         except Exception as e:
             print(f"Erreur lors de la récupération des données : {e}")
-        # Attendre 10 secondes avant la prochaine requête
+        
+        # Attendre avant la prochaine requête
         time.sleep(10)
+
 except Exception as e:
     print(f"Erreur lors de l'initialisation du pilote : {e}")
+
 finally:
-    # Fermer le navigateur si le driver a été initialisé
     if 'driver' in locals():
         driver.quit()

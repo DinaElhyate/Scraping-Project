@@ -11,7 +11,7 @@ CORS(app)
 socketio = SocketIO(app)
 
 # Chemin du fichier CSV
-csv_filename = 'data.csv'
+csv_filename = 'dataVersion2.csv'
 
 # Fonction pour lire les données du fichier CSV
 def read_data_from_csv(filename):
@@ -20,8 +20,11 @@ def read_data_from_csv(filename):
         with open(filename, mode='r') as file:
             reader = csv.DictReader(file)
             for row in reader:
+                # Remplacer les valeurs None par une chaîne vide
+                row = {k: (v if v is not None else '') for k, v in row.items()}
                 data.append(row)
     return data
+
 
 # Fonction pour surveiller les mises à jour du fichier CSV
 def monitor_csv():
