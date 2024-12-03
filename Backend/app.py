@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import time
 from datetime import datetime
@@ -36,8 +35,6 @@ def write_csv_header():
             writer.writerow(["Timestamp", "Prix actuel", "Changement", "Changement (%)", "Heure de mise à jour", "Prédiction du cumul des prix"])
 
 write_csv_header()
-
-plt.ion()  # Mode interactif pour mise à jour en temps réel
 
 try:
     print("Chargement de la page...")
@@ -80,17 +77,6 @@ try:
             if len(previous_prices) >= 10:
                 sma = np.mean(previous_prices[-10:])  # Calcul de la moyenne mobile
                 print(f"Moyenne mobile des 10 derniers prix: {sma}")
-
-                plt.clf()  # Effacer le graphique précédent
-                plt.plot(previous_prices, label='Prix actuel du pétrole', color='blue')
-                plt.axhline(y=sma, color='red', linestyle='-', label='Moyenne mobile (SMA)')
-                plt.title(f"Prix du pétrole et Moyenne mobile - {timestamp}")
-                plt.xlabel('Temps')
-                plt.ylabel('Prix')
-                plt.legend()
-
-                # Mettre à jour le graphique
-                plt.pause(1)  # Attendre 1 seconde pour la mise à jour du graphique
 
         except Exception as e:
             print(f"Erreur lors de la récupération des données : {e}")
