@@ -81,7 +81,6 @@ try:
         except Exception as e:
             print(f"Erreur lors de la récupération des données : {e}")
         
-        # Attendre avant la prochaine requête
         time.sleep(10)
 
 except Exception as e:

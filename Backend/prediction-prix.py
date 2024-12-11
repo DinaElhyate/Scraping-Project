@@ -23,17 +23,14 @@ options.add_argument('--no-sandbox')
 
 driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
 
-# Modèle de régression linéaire
 model = LinearRegression()
 
-# Historique des prix pour la prédiction
 price_data = []  # Contiendra des tuples (timestamp, prix)
 data_batch = []
 
 def write_csv_header():
-    # Vérifier si le fichier existe, sinon le créer avec un en-tête
     if not os.path.exists(csv_filename):
-        with open(csv_filename, mode='w', newline='') as file:  # Utilisation de 'w' pour créer le fichier
+        with open(csv_filename, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["Timestamp", "Prix actuel", "Changement", "Changement (%)", "Heure de mise à jour", "Prédiction du prochain prix", "Prédiction pour 5 minutes"])
 
@@ -41,7 +38,7 @@ write_csv_header()
 
 try:
     print("Chargement de la page...")
-    driver.get(url)
+    driver.get(url) 
 
     while True:
         try:
@@ -55,30 +52,25 @@ try:
             time_label = driver.find_element(By.CSS_SELECTOR, '[data-test="trading-time-label"]').text.strip()
             timestamp = datetime.now()
 
-            # Ajouter les données au tableau des prix
             price_data.append((timestamp, price))
-            if len(price_data) > 10:  # Conserver les 10 derniers points
+            if len(price_data) > 10: 
                 price_data.pop(0)
 
-            # Conversion des timestamps en secondes écoulées
-            if len(price_data) >= 2:  # Besoin d'au moins 2 points
+            if len(price_data) >= 2: 
                 base_time = price_data[0][0]
                 X = np.array([(t[0] - base_time).total_seconds() for t in price_data]).reshape(-1, 1)
                 y = np.array([t[1] for t in price_data])
                 model.fit(X, y)
 
-                # Prédire le prix pour le prochain intervalle (10 secondes)
                 next_time = (price_data[-1][0] - base_time).total_seconds() + 10
                 predicted_next_price = model.predict(np.array([[next_time]]))[0]
 
-                # Prédire le prix pour 5 minutes (300 secondes)
                 future_time = (price_data[-1][0] - base_time).total_seconds() + 300
                 predicted_price_5min = model.predict(np.array([[future_time]]))[0]
             else:
                 predicted_next_price = price
                 predicted_price_5min = price
 
-            # Sauvegarder les données dans un batch
             data_batch.append([timestamp.strftime("%Y-%m-%d %H:%M:%S"), price, change, change_percent, time_label, predicted_next_price, predicted_price_5min])
             
             if len(data_batch) >= 5:
@@ -93,7 +85,6 @@ try:
         except Exception as e:
             print(f"Erreur lors de la récupération des données : {e}")
         
-        # Attendre avant la prochaine requête
         time.sleep(10)
 
 except Exception as e:
