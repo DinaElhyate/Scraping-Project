@@ -4,7 +4,6 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
-# Fonction pour lire les données du fichier CSV
 def read_from_csv(filename="comments_sentiment.csv"):
     """
     Lire les commentaires et leurs sentiments depuis un fichier CSV.
@@ -13,7 +12,7 @@ def read_from_csv(filename="comments_sentiment.csv"):
     try:
         with open(filename, mode='r', newline='', encoding='utf-8') as file:
             reader = csv.reader(file)
-            next(reader)  # Sauter l'en-tête
+            next(reader) 
             for row in reader:
                 comments_data.append({"comment": row[0], "sentiment": row[1]})
     except Exception as e:
@@ -25,7 +24,7 @@ def get_comments():
     """
     Endpoint pour obtenir les commentaires et leurs sentiments.
     """
-    comments = read_from_csv()  # Lire les données du fichier CSV
+    comments = read_from_csv()  
     if not comments:
         return jsonify({"message": "Aucun commentaire trouvé."}), 404
     return jsonify(comments)
@@ -35,7 +34,7 @@ def get_comments_stats():
     """
     Endpoint pour obtenir le nombre de commentaires par sentiment.
     """
-    comments = read_from_csv()  # Lire les données du fichier CSV
+    comments = read_from_csv()
     if not comments:
         return jsonify({"message": "Aucun commentaire trouvé."}), 404
     

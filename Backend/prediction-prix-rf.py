@@ -11,6 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from sklearn.ensemble import RandomForestRegressor
+import locale
 
 # URL et fichier de sortie
 url = "https://fr.investing.com/commodities/crude-oil-commentary"
@@ -50,7 +51,11 @@ try:
                 EC.visibility_of_element_located((By.CSS_SELECTOR, '[data-test="instrument-price-last"]'))
             )
 
-            price = float(driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-last"]').text.strip().replace(',', ''))
+            locale.setlocale(locale.LC_NUMERIC, 'fr_FR.UTF-8')
+
+            # Code pour récupérer et formater le prix
+            price = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-last"]').text.strip()
+            price = float(price.replace(',', '.'))  # Remplacer la virgule par un point pour convertir en float'))
             change = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-change"]').text.strip()
             change_percent = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-change-percent"]').text.strip()
             time_label = driver.find_element(By.CSS_SELECTOR, '[data-test="trading-time-label"]').text.strip()

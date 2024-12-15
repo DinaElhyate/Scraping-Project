@@ -11,12 +11,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from sklearn.linear_model import LogisticRegression
+import locale
 
 url = "https://fr.investing.com/commodities/crude-oil-commentary"
 csv_filename = 'dataVersion2.csv'
 
 options = Options()
-options.binary_location = "/usr/bin/firefox"  # chemin typique sur Ubuntu pour Firefox
+options.binary_location = "/usr/bin/firefox" 
 options.add_argument('--disable-extensions')
 options.add_argument('--disable-dev-shm-usage')
 options.add_argument('--no-sandbox')
@@ -46,14 +47,18 @@ try:
             EC.visibility_of_element_located((By.CSS_SELECTOR, '[data-test="instrument-price-last"]'))
         )
 
-            price = float(driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-last"]').text.strip().replace(',', ''))
+            locale.setlocale(locale.LC_NUMERIC, 'fr_FR.UTF-8')
+
+            # Code pour récupérer et formater le prix
+            price = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-last"]').text.strip()
+            price = float(price.replace(',', '.'))  # Remplacer la virgule par un point pour convertir en float
             change = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-change"]').text.strip()
             change_percent = driver.find_element(By.CSS_SELECTOR, '[data-test="instrument-price-change-percent"]').text.strip()
             time_label = driver.find_element(By.CSS_SELECTOR, '[data-test="trading-time-label"]').text.strip()
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             previous_prices.append(price)
-            if len(previous_prices) > 10:  # Conserver les 10 dernières valeurs
+            if len(previous_prices) > 10: 
                 previous_prices.pop(0)
 
             if len(previous_prices) == 10:
@@ -62,7 +67,7 @@ try:
                 model.fit(X, y)
                 predicted_price = model.predict(np.array([[price]]))[0]
             else:
-                predicted_price = price  # Pas assez de données pour une prédiction
+                predicted_price = price  
 
             data_batch.append([timestamp, price, change, change_percent, time_label, predicted_price])
             
@@ -70,7 +75,7 @@ try:
                 with open(csv_filename, mode='a', newline='') as file:
                     writer = csv.writer(file)
                     writer.writerows(data_batch)
-                data_batch.clear()  # Vider le lot après écriture
+                data_batch.clear() 
 
             print(f"Timestamp: {timestamp}, Prix actuel: {price}, Changement: {change}, Pourcentage: {change_percent}, Heure: {time_label}, Prédiction: {predicted_price}")
 
